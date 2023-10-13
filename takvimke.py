@@ -17,7 +17,7 @@ viewer = SimplePDFViewer(page)
 for canvas in viewer:
      page_strings = canvas.strings
      
-# remove header
+# remove headers and unnecessary information
 items = page_strings[18::]
 
 # clean data, fix parsing errors such as single digits sliding 
@@ -53,7 +53,6 @@ def clean_list(items:list = items) -> list:
 raw_fach_info = clean_list()
 
 # group module information
-
 def group_fach_info(raw_info)-> list:
 
      index = 0
@@ -67,7 +66,6 @@ def group_fach_info(raw_info)-> list:
 faecher = group_fach_info(raw_fach_info)
 
 # reorganize module information
-
 def map_courses() -> dict:
     fach_dict = dict()
     for fach in faecher:
@@ -90,6 +88,7 @@ def add_course(course_abr):
                my_courses[course_abr] = fach_dict.get(key)
                return
 
+# add my courses to my_courses
 add_course('SEA1'); add_course('BWL3') ;add_course('BWLP3') ;add_course('AD') ;add_course('ADP/03') ;add_course('SEAP1/03') ;add_course('WI2') ;add_course('WIP2/04')
 
 def add_days_of_week():
@@ -128,11 +127,7 @@ def str_to_intlist(string: str) -> tuple:
                start, end = int(interval[0]), int(interval[1])
                nums.extend(list(range(start, end + 1)))
 
-     #for index,num in enumerate(nums):
-     #     if num > 52:
-     #          nums[index] = num - 52 
-
-     return tuple(nums)
+     return tuple(nums) #return a tuple for ease of iteration and immutability
 
 def convert_string_kalenderwochen_to_inttuples():
      for course,info in my_courses.items():
@@ -143,12 +138,10 @@ def convert_string_kalenderwochen_to_inttuples():
 
 convert_string_kalenderwochen_to_inttuples()
 
-
 def str_to_isotime(string:str):
      splitted = string.split(':')
      hours, minutes  = splitted[0],splitted[1]
      return str(time(int(hours),int(minutes)))
-
 
 def dict_to_event(dictionary:dict) -> list:
     events = []
@@ -187,12 +180,11 @@ def get_day_from_weeknr(year:int = 2023 , weeknr: int = None, day:str = None) ->
      return str(date)
 
 
-
 calendar = Calendar()
 timezone = pytz.timezone('Europe/Berlin')
 format = '%Y-%m-%d %H:%M:%S'
+
 for course, infos in my_courses.items():
-     
      
      year =  2023
 
@@ -221,15 +213,10 @@ for course, infos in my_courses.items():
 
           calendar.events.add(event)
           
-
-
-
-for event in calendar.events:
-    print(event.begin)
-
-
 #print(help(calendar))
 with open("caltest.ics", "w") as f: f.writelines(calendar)
+
+'TODO: Terminal app and selection menu'
 
 
 
