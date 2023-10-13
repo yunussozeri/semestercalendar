@@ -1,14 +1,10 @@
 
 from pdfreader import SimplePDFViewer
 import os
-
 from ics import Event, Calendar
-import datetime
-from dateutil.rrule import rrulestr
-
-
-
-
+from datetime import time, datetime
+from isoweek import Week
+import pytz
 
 os.chdir("//Users/yunussozeri/Desktop/takvimke")
 
@@ -21,10 +17,8 @@ viewer = SimplePDFViewer(page)
 for canvas in viewer:
      page_strings = canvas.strings
      
-    
 # remove header
 items = page_strings[18::]
-
 
 # clean data, fix parsing errors such as single digits sliding 
 index = 0
@@ -78,10 +72,10 @@ def map_courses() -> dict:
     fach_dict = dict()
     for fach in faecher:
          fach_desc = dict()
-         fach_desc['kursname'] = (str)(fach[3]).replace('BWI3-','')
          fach_desc['beginn'] = fach[0]
-         fach_desc['end'] = fach[2]
          fach_desc['dozent'] = fach[1]
+         fach_desc['end'] = fach[2]
+         fach_desc['kursname'] = (str)(fach[3]).replace('BWI3-','')
          fach_desc['raum'] = fach[4]
          fach_desc['kalenderwochen'] = fach[5]
          fach_dict[fach[3]] = fach_desc
@@ -96,14 +90,7 @@ def add_course(course_abr):
                my_courses[course_abr] = fach_dict.get(key)
                return
 
-add_course('BWL3')
-add_course('BWLP3')
-add_course('AD')
-add_course('ADP/03')
-add_course('SEA1')
-add_course('SEAP1/03')
-add_course('WI2')
-add_course('WIP2/04')
+add_course('SEA1'); add_course('BWL3') ;add_course('BWLP3') ;add_course('AD') ;add_course('ADP/03') ;add_course('SEAP1/03') ;add_course('WI2') ;add_course('WIP2/04')
 
 def add_days_of_week():
 
@@ -126,50 +113,6 @@ def add_days_of_week():
      
 add_days_of_week()     
 
-reqs = list()
-for info in my_courses.values():
-     req = [info['kursname'],info['day-of-week'],info['kalenderwochen']]
-     reqs.append(req)
-
-def extract_intervals():
-     for req in reqs:
-          #remove commas from the week numbers
-          req[2] = req[2].split(', ')
-          for weeks in req[2]:
-               # count the number of pairs in the form "##-##" and replace them with pair lists
-               count = 0
-               if '-' in weeks:
-                    req[2].append(weeks.split('-'))
-                    count += 1
-               req[2] = req[2][count::]
-         # print(req)
-          
-data = [['BWL3', 'Mi', [['42', '43'], ['45', '51'], ['54', '57']]],
-        ['BWLP3', 'Mi', [['42', '43'], ['45', '51'], ['54', '57']]],
-        ['AD', 'Do', [['42', '51'], ['54', '56']]],
-        ['ADP/03', 'Do', ['45', '48', '51', '56']],
-        ['SEA1', 'Di', [['42', '43'], ['45', '51'], ['54', '57']]],
-        ['SEAP1/03', 'Do', ['46', '49', '54', '57']],
-        ['WI2', 'Fr', [['42', '51'], ['54', '57']]],
-        ['WIP2/04', 'Fr', ['44', '46', '48', '50', '54', '56']]]
-
-def expand_intervals(data):
-    result = []
-    for item in data:
-        if len(item) == 3 and isinstance(item[2], list):
-            expanded_intervals = []
-            for interval in item[2]:
-                if isinstance(interval, list):
-                    start, end = int(interval[0]), int(interval[1])
-                    expanded_intervals.extend(list(range(start, end + 1)))
-                else:
-                    expanded_intervals.append(int(interval))
-            item[2] = expanded_intervals
-        result.append(item)
-    return result
-
-expanded_data = expand_intervals(data)
-
 def str_to_intlist(string: str) -> tuple:
      comma_splitted = string.split(',')
      nums = []
@@ -185,130 +128,108 @@ def str_to_intlist(string: str) -> tuple:
                start, end = int(interval[0]), int(interval[1])
                nums.extend(list(range(start, end + 1)))
 
+     #for index,num in enumerate(nums):
+     #     if num > 52:
+     #          nums[index] = num - 52 
+
      return tuple(nums)
-          
-for course,info in my_courses.items():
-     kalenderwochen = list()
-     kalenderwochen.append(info['kalenderwochen'])
-     for wochen in kalenderwochen:
-          info['kalenderwochen'] = str_to_intlist(wochen)
-     print(course, info['kalenderwochen'])
+
+def convert_string_kalenderwochen_to_inttuples():
+     for course,info in my_courses.items():
+          kalenderwochen = list()
+          kalenderwochen.append(info['kalenderwochen'])
+          for wochen in kalenderwochen:
+               info['kalenderwochen'] = str_to_intlist(wochen)
+
+convert_string_kalenderwochen_to_inttuples()
 
 
+def str_to_isotime(string:str):
+     splitted = string.split(':')
+     hours, minutes  = splitted[0],splitted[1]
+     return str(time(int(hours),int(minutes)))
 
 
-# append 2023-W in front of all week numbers to get convert them into date time conform format
-def format_week_numbers():    
-    for req in reqs:
-         prefix23 = '2023-W'
-         prefix24 = '2024-W'
-         for i,weeks in enumerate(req[2]):
-              if isinstance(weeks,str):
-                   if(int)(weeks) > 52:
-                        w = (int)(weeks)
-                        diff = w - 52
-                        week = prefix24+(str)(diff)
-                        req[2][i] = week
-                   else:
-                        weeks = prefix23+weeks
-                        req[2][i] = weeks
-              
-              elif isinstance(weeks,list):
-                   for j,week in enumerate(weeks):
-                        # if week number larger than 52, calculate the recess in the next year and reformat with next years literal
-                        if(int)(week) > 52:
-                             w = (int)(week)
-                             diff = w - 52
-                             week = prefix24+(str)(diff)
-                             req[2][i][j] = week
-                        else: 
-                             week = prefix23+week
-                             req[2][i][j] = week
+def dict_to_event(dictionary:dict) -> list:
+    events = []
+    for course, info in my_courses.items():
+         event = Event()
+         event.name = info['kursname']
+         event.location = info['raum']
+         event.organizer = info['dozent']
+         
+         for w in kw:
+          if w > 52:
+               w = w - 52
+               date =get_day_from_weeknr( 2024, w, day)
+          else: 
+               date = get_day_from_weeknr( year, w, day)
+               event.begin = date + " " + str_to_isotime(info['beginn'])
+               event.end =  date + " " + str_to_isotime(info['end'])
+         events.append(event)
 
-#date_format = "%Y-W%W"
+def get_day_from_weeknr(year:int = 2023 , weeknr: int = None, day:str = None) -> str:
+     date = Week(year,weeknr)
 
-
-
-from ics import Event, Calendar
-from datetime import time
-from isoweek import Week
-#events = []
-def dater(start:time,end:time,day:str,name:str,place:str,holder:str,weeks:list):
-     events = []
-     start_time = start
-     end_time = end
-     day_of_week = day
-     event_name = name
-     event_place = place
-     event_holder = holder
-     weeks_of_year = weeks
-
-     for week in weeks_of_year:
-          if isinstance(week, list):
-               start_week, end_week = week
-               for current_week in range(int(start_week.split('-W')[1]), int(end_week.split('-W')[1]) + 1):
-                   year = int(start_week.split('-W')[0])
-                   current_date = Week(year, current_week).monday()
-                   if day_of_week != "Mo":
-                        current_date = Week(year, current_week).tuesday()
-                   start_date = current_date.replace(hour=start_time.hour, minute=start_time.minute)
-                   end_date = current_date.replace(hour=end_time.hour, minute=end_time.minute)
-       
-                   event = Event()
-                   event.name = event_name
-                   event.begin = start_date
-                   event.end = end_date
-                   event.location = event_place
-                   event.organizer = event_holder
-       
-                   # Create the recurrence rule for each week
-                   recurrence_rule = f" RRULE:FREQ=WEEKLY;COUNT=10;WKST=SU;BYDAY=MO,FR"
-                   event.rrule = rrulestr("""RRULE:FREQ=WEEKLY;INTERVAL=10;COUNT=5;WKST=SU;BYDAY=MO,FR""")
-       
-                   events.append(event)
-          else:
-              start_week = week
-              year = int(start_week.split('-W')[0])
-              current_date = Week(year, int(start_week.split('-W')[1])).thursday()
-              start_date = datetime.combine(current_date, start_time)
-              end_date = datetime.combine(current_date, end_time)
-          
-              event = Event()
-              event.name = event_name
-              event.begin = start_date
-              event.end = end_date
-              event.location = event_place
-              event.organizer = event_holder
-          
-
-              # Create the recurrence rule for the single week event
-              recurrence_rule =  rrulestr("FREQ=DAILY;INTERVAL=10;COUNT=5")
-              event.rrule = rrulestr("FREQ=WEEKLY;INTERVAL=10;COUNT=5")
-          
-              print(event)
-              events.append(event)
+     if day == 'Mo':
+          date = date.monday()
+     elif day == 'Di':
+          date = date.tuesday()
+     elif day == 'Mi':
+          date = date.wednesday()
+     elif day == 'Do':
+          date = date.thursday()
+     elif day == 'Fr':
+          date = date.friday()
+     else:
+          raise " Not implemented"
      
-# Define the event information
-event_holder = "DENEMEKE"
-start_time = time(8, 15)
-end_time = time(11, 30)
-day_of_week = "MO"
-event_name = "DENEME EVENTI"
-event_place = "DENEME MEKANI"
-#weeks_of_year = ["2023-W43", ["2023-W44", "2024-W2"], "2024-W9"]
-
-# Create a list to store individual events
-#dater(start_time,end_time,day_of_week,event_name,event_place,event_holder,weeks_of_year)
-#dater(time(9, 30),time(11, 15),"TU","Test event","test event location","test event holder",weeks_of_year)
+     return str(date)
 
 
-# Create a Calendar and add all events to it
-#calendar = Calendar()
-#calendar.events.update(events)
-# Print the events as an .ics file
-#print(calendar)
 
-#with open("my_calendar.ics", "w") as f: f.writelines(calendar)
+calendar = Calendar()
+timezone = pytz.timezone('Europe/Berlin')
+format = '%Y-%m-%d %H:%M:%S'
+for course, infos in my_courses.items():
+     
+     
+     year =  2023
+
+     kw = infos['kalenderwochen']
+     day = infos['day-of-week']
+
+     begin = str_to_isotime(infos['beginn'])
+     end = str_to_isotime(infos['end'])
+
+     dozent = infos['dozent']
+     location = infos['raum']
+
+     for w in kw:
+          event = Event()
+          if w > 52:
+               w = w - 52
+               date =get_day_from_weeknr( 2024, w, day)
+          else: 
+               date = get_day_from_weeknr( year, w, day)
+          
+          event.name = course
+          event.begin = timezone.localize(datetime.strptime(date + " " + begin,format))
+          event.end = timezone.localize(datetime.strptime(date + " " + end, format))
+          event.organizer = dozent
+          event.location = location
+
+          calendar.events.add(event)
+          
+
+
+
+for event in calendar.events:
+    print(event.begin)
+
+
+#print(help(calendar))
+with open("caltest.ics", "w") as f: f.writelines(calendar)
 
 
 
